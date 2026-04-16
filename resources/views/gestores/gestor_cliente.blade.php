@@ -29,7 +29,7 @@
 @endphp
 @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
     @vite([
-        'resources/css/menus/themes/' . $spaCss . '.css',
+        'resources/css/menus/' . $spaCss . '/menu_styles.css',
         'resources/css/gestores/g_clientes_styles.css',
         'resources/css/ModalAviso/modal_aviso.css',
         ])
@@ -53,10 +53,9 @@
     <h2>GESTIONAR CLIENTES</h2>
 </header>
 
-    <div class="botonera-top">
+<div class="botonera-top">
     <div class="d-flex gap-2">
-        @php $qs = http_build_query(request()->query()); @endphp
-        <a href="{{ route('clientes.export') }}{{ $qs ? '?'.$qs : '' }}" class="btn btns d-flex align-items-center justify-content-center">
+        <a href="{{ route('clientes.export') }}" class="btn btns d-flex align-items-center justify-content-center">
             <i class="fas fa-download"></i>
         </a>
 

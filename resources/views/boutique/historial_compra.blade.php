@@ -12,7 +12,7 @@
         $spaCss = session('current_spa') ?? strtolower(optional(Auth::user()->spa)->nombre);
     @endphp
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
-        @vite('resources/css/menus/themes/' . $spaCss . '.css')
+        @vite('resources/css/menus/' . $spaCss . '/menu_styles.css')
         @vite('resources/css/general_styles.css')
         @vite('resources/css/boutique/boutique_historial_styles.css')
         @vite('resources/css/componentes/autoComplete.css')
@@ -63,6 +63,7 @@
             <table class="table" id="tabla-compras">
                 <thead>
                     <tr>
+                        <th>Id</th>
                         <th>Tipo</th>
                         <th>Folio Orden</th>
                         <th>Folio Factura</th>
@@ -89,6 +90,7 @@
 
                         @foreach ($comprasDelFolio as $compra)
                             <tr class="fila-articulo {{ $claseColor }}">
+                                <td>{{ $compra->id }}</td>
                                 <td>{{ ucfirst($compra->tipo_compra) }}</td>
                                 <td>{{ $compra->folio_orden_compra ?? '-' }}</td>
                                 <td>{{ $compra->folio_factura }}</td>
@@ -111,7 +113,7 @@
                         @endforeach
                     @empty
                         <tr class="fila-articulo">
-                            <td colspan="10" style="text-align: center">Sin compras registradas</td>
+                            <td colspan="11" style="text-align: center">Sin compras registradas</td>
                         </tr>
                     @endforelse
                 </tbody>

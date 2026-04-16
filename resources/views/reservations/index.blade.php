@@ -16,7 +16,7 @@
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         {{-- Vite carga estilos CSS específicos para el spa --}}
         @vite([
-            'resources/css/menus/themes/' . $spaCss . '.css',
+            'resources/css/menus/' . $spaCss . '/menu_styles.css',
             'resources/css/sabana_reservaciones/reservaciones_styles.css',
             'resources/css/ModalAviso/modal_aviso_individual.css'
         ])
@@ -78,15 +78,10 @@
 <div id="contextMenuReserved" class="context-menu" style="display: none; position: absolute;">
     <ul>
         @if (in_array(Auth::user()->rol, ['master', 'administrador', 'recepcionista']))
-            {{-- Opciones para reservaciones SIN check-out --}}
-            <li id="editarOpcion" class="opcion-no-checkout">Editar Reservación</li>
-            <li id="eliminarOpcion" class="opcion-no-checkout">Cancelar Reservación</li>
-            
-            {{-- Opción para reservaciones SIN check-in --}}
-            <li id="checkinOpcion" class="opcion-no-checkout">Check in</li>
-
-            {{-- Opción para reservaciones CON check-in pero SIN check-out (lleva a la pantalla de pago) --}}
-            <li id="checkoutOpcion" class="opcion-no-checkout">Check-out</li>
+            <li id="editarOpcion">Editar Reservación</li>
+            <li id="eliminarOpcion">Cancelar Reservación</li>
+            <li id="checkinOpcion">Check in</li>
+            <li id="checkoutOpcion">Check out</li>
         @endif
     </ul>
 </div>
@@ -175,16 +170,11 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Anfitrión/Terapeuta</label>
+            <label class="form-label">Anfitrión</label>
             <select class="form-select" name="grupo[__INDEX__][anfitrion_id]" required>
-                <option value="">Selecciona anfitrión/terapeuta</option>
+                <option value="">Selecciona anfitrión</option>
                 @foreach ($anfitrionesDisponibles as $anfitrion)
-                    @php
-                        $esSalon = $anfitrion->operativo->departamento === 'salon de belleza';
-                    @endphp
-                    <th class="{{ $esSalon ? 'encabezado-salon' : '' }}">
-                        {{ $anfitrion->nombre_usuario }} {{ $anfitrion->apellido_paterno }}
-                    </th>
+                    <option value="{{ $anfitrion->id }}">{{ $anfitrion->nombre_usuario }} {{ $anfitrion->apellido_paterno }}</option>
                 @endforeach
             </select>
         </div>
@@ -219,16 +209,8 @@
                     {{-- Campos ocultos para datos esenciales --}}
                     <input type="hidden" id="cliente_existente_id" name="cliente_existente_id" value="">
                     <input type="hidden" id="reserva_id" name="reserva_id">
-                    <div class="mb-3 d-none" id="fecha-wrapper">
-                        <label for="fecha_reserva" class="form-label">Fecha</label>
-                        <input type="date" id="fecha_reserva" name="fecha" class="form-control">
-                    </div>
-                    <div class="mb-3 d-none" id="hora-wrapper">
-                        <label for="hora" class="form-label">Hora</label>
-                        <select id="hora" name="hora" class="form-select">
-                            <option value="">Selecciona una hora</option>
-                        </select>
-                    </div>
+                    <input type="hidden" id="fecha" name="fecha">
+                    <input type="hidden" id="hora" name="hora">
                     <input type="hidden" id="duracion" name="duracion">
                     <input type="hidden" id="selected_anfitrion" name="anfitrion_id">
 
@@ -272,14 +254,6 @@
                                     {{ $experience->nombre }} - {{ $experience->duracion }} min - ${{ $experience->precio }}
                                 </option>
                             @endforeach
-                        </select>
-                    </div>
-
-                    {{-- Select anfitrión (solo para edición) --}}
-                    <div class="mb-3" id="anfitrionWrapper" style="display: none;">
-                        <label for="anfitrion_id" class="form-label">Anfitrión/Terapeuta</label>
-                        <select class="form-select" id="anfitrion_id_select" name="anfitrion_id">
-                            {{-- Opciones se llenarán dinámicamente --}}
                         </select>
                     </div>
 
@@ -381,10 +355,9 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const selectExperiencia = document.getElementById('experiencia_id');
-    const selectAnfitrion = document.getElementById('anfitrion_id_select');
-    const selectCabina = document.getElementById('cabina_id');
+    const selectAnfitrion = document.getElementById('anfitrion_id');
 
-    if (!selectExperiencia || !selectAnfitrion || !selectCabina) return;
+    if (!selectExperiencia || !selectAnfitrion) return;
 
     const todosLosAnfitriones = window.ReservasConfig.anfitriones;
 
@@ -396,20 +369,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const experiencia = window.ReservasConfig.experiencias.find(e => e.id === experienciaId);
         if (!experiencia || !experiencia.clase) return;
 
-        const normalize = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-        const claseNorm = normalize(experiencia.clase || '');
+        const clase = experiencia.clase.toLowerCase();
 
         // Limpiar select de anfitriones
         selectAnfitrion.innerHTML = '<option value="">Selecciona anfitrión</option>';
 
-        // Filtrar anfitriones por clase (revisando clases_actividad del operativo)
-        const filtrados = todosLosAnfitriones.filter(anfitrion => {
-            const clases = Array.isArray(anfitrion.operativo?.clases_actividad)
-                ? anfitrion.operativo.clases_actividad
-                : (Array.isArray(anfitrion.clases_actividad) ? anfitrion.clases_actividad : []);
-            const clasesNorm = clases.map(c => normalize(c));
-            return clasesNorm.includes(claseNorm);
-        });
+        // Filtrar anfitriones por clase (departamento)
+        const filtrados = todosLosAnfitriones.filter(anfitrion =>
+            anfitrion.departamento?.toLowerCase() === clase
+        );
 
         // Agregar opciones al select
         filtrados.forEach(anfitrion => {
@@ -420,65 +388,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    async function filtrarCabinas() {
-        const experienciaId = parseInt(selectExperiencia.value);
-        if (!experienciaId) {
-            selectCabina.innerHTML = '<option value="">Selecciona una cabina</option>';
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/experiences/${experienciaId}/cabinas`);
-            if (!response.ok) throw new Error('Error al cargar las cabinas');
-            const cabinas = await response.json();
-
-            selectCabina.innerHTML = '<option value="">Selecciona una cabina</option>';
-            cabinas.forEach(cabina => {
-                const option = document.createElement('option');
-                option.value = cabina.id;
-                option.textContent = cabina.nombre;
-                selectCabina.appendChild(option);
-            });
-        } catch (error) {
-            console.error(error);
-            selectCabina.innerHTML = '<option value="">Error al cargar cabinas</option>';
-        }
-    }
-
-    async function filtrarExperiencias() {
-        const anfitrionId = parseInt(selectAnfitrion.value);
-        if (!anfitrionId) {
-            selectExperiencia.innerHTML = '<option value="">Selecciona una experiencia</option>';
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/anfitriones/${anfitrionId}/experiences`);
-            if (!response.ok) throw new Error('Error al cargar las experiencias');
-            const experiences = await response.json();
-
-            selectExperiencia.innerHTML = '<option value="">Selecciona una experiencia</option>';
-            experiences.forEach(experience => {
-                const option = document.createElement('option');
-                option.value = experience.id;
-                option.textContent = `${experience.nombre} - ${experience.duracion} min - $${experience.precio}`;
-                option.dataset.duracion = experience.duracion;
-                selectExperiencia.appendChild(option);
-            });
-        } catch (error) {
-            console.error(error);
-            selectExperiencia.innerHTML = '<option value="">Error al cargar experiencias</option>';
-        }
-    }
-
-    // Detectar cambio en experiencia para filtrar anfitriones y cabinas
-    selectExperiencia.addEventListener('change', function() {
-        filtrarAnfitriones();
-        filtrarCabinas();
-    });
-
-    // Detectar cambio en anfitrion para filtrar experiencias
-    selectAnfitrion.addEventListener('change', filtrarExperiencias);
+    // Detectar cambio en experiencia para filtrar anfitriones
+    selectExperiencia.addEventListener('change', filtrarAnfitriones);
 });
 </script>
 

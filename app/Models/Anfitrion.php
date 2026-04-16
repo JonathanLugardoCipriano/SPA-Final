@@ -21,12 +21,10 @@ class Anfitrion extends Authenticatable
         'rol',
         'accesos',
         'activo',
-        'porcentaje_servicio',
     ];
 
     protected $casts = [
         'accesos' => 'array', // Permite acceso como array desde JSON
-        'porcentaje_servicio' => 'float',
     ];
 
     // Relación al spa principal del anfitrión

@@ -39,14 +39,9 @@ class Sale extends Model
     }
 
     public function reservacion()
-    {
-        return $this->belongsTo(Reservation::class, 'reservacion_id');
-    }
-
-    public function invoice()
-    {
-        return $this->hasOne(Invoice::class);
-    }
+{
+    return $this->belongsTo(Reservation::class, 'reservacion_id');
+}
 
 
 }

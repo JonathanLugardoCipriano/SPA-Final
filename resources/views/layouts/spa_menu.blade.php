@@ -18,24 +18,7 @@
     
     <title>ELAN SPA & WELLNESS EXPERIENCE</title>
 
-    {{-- ================================================================== --}}
-    {{-- INICIO: LÓGICA CENTRALIZADA DE CARGA DE ESTILOS --}}
-    {{-- ================================================================== --}}
-
-    {{-- 1. Fuentes globales --}}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Kumbh+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-    {{-- 2. Estilos base de la aplicación cargados con Vite --}}
-    @vite([
-        'resources/css/menus/menu_base_styles.css'
-    ])
-
-    {{-- 3. Inclusión del tema dinámico (desde la BD) o estático (desde archivo) --}}
-    @include('layouts.dynamic-styles')
-
-    {{-- 4. Espacio para que cada página pueda añadir sus propios estilos específicos si es necesario --}}
-    @yield('css')
+    @yield('css') 
 </head>
 <body class="sidebar-hover">
     @php
@@ -68,15 +51,10 @@
             @endif
                 
             {{-- Menú: para salón de belleza, según rol y departamento --}}
-             @if (in_array(Auth::user()->rol, ['master', 'administrador', 'recepcionista']) ||
+            {{-- @if (in_array(Auth::user()->rol, ['master', 'administrador', 'recepcionista']) ||
                 (Auth::user()->rol === 'anfitrion' && Auth::user()->departamento === 'salon de belleza'))
-                <li class="menu-item">
-                    <a href="#"><i class="fas fa-spa"></i><span> Salón de Belleza</span></a>
-                    <ul class="submenu">
-                        <li><a href="{{ route('salon.index') }}"><i class="fas fa-chart-line"></i><span> Reporteo</span></a></li>
-                    </ul>
-                </li>
-            @endif 
+                <li><a href="#"><i class="fas fa-spa"></i><span> Salón de Belleza</span></a></li>
+            @endif --}}
                 
                 
             {{-- Menú: para la boutique, según rol y departamento --}}
@@ -92,14 +70,13 @@
             @endif
 
             {{-- Menú: para el gimnasio, según rol y departamento --}}
-            @if (in_array(Auth::user()->rol, ['master', 'administrador']) || (Auth::user()->rol === 'anfitrion' && Auth::user()->departamento === 'gym'))
+            @if (in_array(Auth::user()->rol, ['master', 'administrador']))
                 <li class="menu-item">
                     <a href="#"><i class="fas fa-dumbbell"></i><span> Gimnasio</span></a>
                     <ul class="submenu">
                         <li><a href="{{ route('gimnasio.reporteo') }}"><i class="fas fa-chart-line"></i><span> Reporteo</span></a></li>
                         <li><a href="{{ route('gimnasio.historial') }}"><i class="fas fa-history"></i><span> Historial</span></a></li>
                         <li><a href="{{ route('gimnasio.qr_code') }}" target="_blank"><i class="fas fa-qrcode"></i><span> Código QR</span></a></li>
-    
                     </ul>
                 </li>
             @endif
@@ -116,7 +93,6 @@
                                 <li><a href="{{ route('cabinas.index') }}"><i class="fas fa-door-closed"></i><span> Cabinas</span></a></li>
                                 <li><a href="{{ route('cliente.index') }}"><i class="fas fa-users"></i><span> Clientes</span></a></li>
                                 <li><a href="{{ route('familias.index') }}"><i class="fas fa-box"></i><span> Familias</span></a></li>
-                                <li><a href="{{ route('areas.index') }}"><i class="fas fa-map-marked"></i><span> Áreas</span></a></li>
                             @endif
                         </ul>
                     </li>

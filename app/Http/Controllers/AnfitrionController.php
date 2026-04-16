@@ -7,12 +7,9 @@ use App\Models\Spa;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use App\Models\Anfitrion;
 use App\Models\AnfitrionOperativo;
 use App\Models\HorarioAnfitrion;
-use App\Models\Departamento;
-use Illuminate\Validation\Rule;
 use App\Models\Experience;
 
 class AnfitrionController extends Controller
@@ -20,68 +17,22 @@ class AnfitrionController extends Controller
     // Lista anfitriones del spa actual y prepara datos para la vista
     public function index(Request $request)
     {
-        // Obtenemos el ID del spa/unidad directamente de la sesión.
-        // Esto funciona tanto para los spas principales como para las unidades nuevas.
-        $spaId = session('current_spa_id');
- 
-        if (!$spaId) {
-            return abort(403, 'No se ha seleccionado una unidad de negocio válida.');
+        $spaNombre = session('current_spa');
+
+        if (!in_array($spaNombre, ['palacio', 'princess', 'pierre'])) {
+            return abort(403, 'No se encontró un spa válido en la base de datos.');
         }
- 
-        // Buscamos el spa/unidad por su ID.
-        $spa = Spa::find($spaId);
+
+        $spa = Spa::where('nombre', $spaNombre)->first();
         if (!$spa) {
-            return abort(403, 'La unidad de negocio seleccionada no fue encontrada en la base de datos.');
+            return abort(403, 'No se encontró el spa en la base de datos.');
         }
 
         // Obtiene anfitriones del spa excepto rol master, con datos operativos cargados
-        $query = Anfitrion::where('spa_id', $spa->id)
+        $anfitriones = Anfitrion::where('spa_id', $spa->id)
             ->where('rol', '!=', 'master')
-            ->with('operativo');
-
-        // Filtrado por término de búsqueda (busca en RFC, nombre, apellidos, rol, departamento y categorias)
-        $search = trim($request->query('search', ''));
-        if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                // Campos directos en la tabla anfitriones
-                $q->where('RFC', 'like', "%{$search}%")
-                    ->orWhere('nombre_usuario', 'like', "%{$search}%")
-                    ->orWhere('apellido_paterno', 'like', "%{$search}%")
-                    ->orWhere('apellido_materno', 'like', "%{$search}%")
-                    ->orWhere('rol', 'like', "%{$search}%")
-                    ->orWhere('porcentaje_servicio', 'like', "%{$search}%");
-
-                // Búsqueda por estado (Activo/Inactivo)
-                if (stripos('Activo', $search) !== false) {
-                    $q->orWhere('activo', 1);
-                }
-                if (stripos('Inactivo', $search) !== false) {
-                    $q->orWhere('activo', 0);
-                }
-
-                // Campos dentro de la relación operativo (departamento, clases_actividad JSON)
-                $q->orWhereHas('operativo', function ($oq) use ($search) {
-                    $oq->where('departamento', 'like', "%{$search}%")
-                       ->orWhere('clases_actividad', 'like', "%{$search}%");
-                });
-
-                // Búsqueda en accesos (nombres de Spas)
-                $spaIds = Spa::where('nombre', 'like', "%{$search}%")->pluck('id');
-                foreach ($spaIds as $id) {
-                    $q->orWhereJsonContains('accesos', $id);
-                }
-            });
-        }
-
-        // Filtrado opcional por departamento (ej. 'gym') usando la relación operativo
-        $departamento = trim($request->query('departamento', ''));
-        if ($departamento !== '') {
-            $query->whereHas('operativo', function ($q) use ($departamento) {
-                $q->where('departamento', $departamento);
-            });
-        }
-
-        $anfitriones = $query->get();
+            ->with('operativo')
+            ->get();
 
         // Carga nombres de spas adicionales accesibles para cada anfitrion
         foreach ($anfitriones as $anfitrion) {
@@ -90,6 +41,8 @@ class AnfitrionController extends Controller
                 : json_decode($anfitrion->accesos, true) ?? [];
             $anfitrion->spaNombres = Spa::whereIn('id', $ids)->pluck('nombre')->toArray();
         }
+
+        $spaId = $spa->id;
 
         // Obtiene clases únicas de experiencias asociadas al spa actual
         $clasesDesdeExperiencias = Experience::where('spa_id', $spaId)
@@ -123,29 +76,12 @@ class AnfitrionController extends Controller
             ->filter()
             ->values();
 
-        // Agrupa experiencias por su clase para poblar subtipos (p.ej. masajes, faciales, corporales)
-        $experienciasPorClase = Experience::where('spa_id', $spa->id)
-            ->get()
-            ->groupBy('clase')
-            ->map(function ($grupo) {
-                return $grupo->pluck('nombre')->unique()->values()->all();
-            })
-            ->toArray();
-
-        // Obtener los departamentos disponibles para los formularios
-        $departamentosDisponibles = Departamento::where('spa_id', $spaId)
-            ->where('activo', true)
-            ->orderBy('nombre')
-            ->pluck('nombre');
-
         return view('gestores.gestor_anfitriones', [
             'anfitriones' => $anfitriones,
             'spas' => Spa::all(),
             'spasDisponibles' => Spa::where('id', '!=', $spa->id)->get(),
             'todasClases' => $todasClases,
             'clasesDisponibles' => $clasesDisponibles,
-            'experienciasPorClase' => $experienciasPorClase,
-            'departamentosDisponibles' => $departamentosDisponibles, // <-- Variable que faltaba
         ]);
     }
 
@@ -159,16 +95,7 @@ class AnfitrionController extends Controller
             'nombre_usuario' => 'required|string|max:255',
             'password' => ['required', 'string', 'min:8', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/'],
             'rol' => 'required|string',
-            // --- INICIO DE CAMBIO ---
-            // Validación dinámica de departamentos
-            'departamento' => [
-                'required',
-                Rule::in(
-                    Departamento::where('spa_id', session('current_spa_id'))->where('activo', true)->pluck('nombre')
-                )
-            ],
-            // --- FIN DE CAMBIO ---
-            'porcentaje_servicio' => 'nullable|numeric|min:0|max:100',
+            'departamento' => 'required|in:spa,gym,valet,salon de belleza',
             'accesos' => 'nullable|array',
             'accesos.*' => 'integer|exists:spas,id',
         ], [
@@ -176,7 +103,6 @@ class AnfitrionController extends Controller
             'password.regex' => 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.',
         ]);
 
-        // Si la validación falla, Laravel redirigirá automáticamente.
         if ($validator->fails()) {
             return redirect()->route('anfitriones.index')
                 ->withErrors($validator, 'create')
@@ -184,7 +110,6 @@ class AnfitrionController extends Controller
         }
 
         $clases = array_values(array_filter($request->input('clases_actividad', [])));
-        // Obtener el spa_id de la sesión de forma segura.
         $spa = Spa::where('nombre', session('current_spa'))->first();
         $spa_id = $spa?->id;
 
@@ -195,38 +120,26 @@ class AnfitrionController extends Controller
                 ->withInput();
         }
 
-        // --- INICIO DE CAMBIO: Uso de transacción ---
-        // Se envuelve la creación en una transacción para garantizar la integridad de los datos.
-        // Si algo falla al crear el AnfitrionOperativo, la creación del Anfitrion se revierte.
-        try {
-            DB::transaction(function () use ($request, $spa_id, $clases) {
-                $anfitrion = Anfitrion::create([
-                    'RFC' => $request->RFC,
-                    'apellido_paterno' => $request->apellido_paterno,
-                    'apellido_materno' => $request->apellido_materno,
-                    'nombre_usuario' => $request->nombre_usuario,
-                    'password' => bcrypt($request->password),
-                    'spa_id' => $spa_id,
-                    'rol' => $request->rol,
-                    'departamento' => $request->departamento,
-                    'accesos' => $request->filled('accesos') ? array_values(array_map('intval', $request->accesos)) : [],
-                    'activo' => $request->activo ?? true,
-                    'porcentaje_servicio' => $request->porcentaje_servicio,
-                ]);
+        $anfitrion = Anfitrion::create([
+            'RFC' => $request->RFC,
+            'apellido_paterno' => $request->apellido_paterno,
+            'apellido_materno' => $request->apellido_materno,
+            'nombre_usuario' => $request->nombre_usuario,
+            'password' => bcrypt($request->password),
+            'spa_id' => $spa_id,
+            'rol' => $request->rol,
+            'departamento' => $request->departamento,
+            'accesos' => $request->filled('accesos') ? array_values(array_map('intval', $request->accesos)) : [],
+            'activo' => $request->activo ?? true,
+        ]);
 
-                AnfitrionOperativo::create([
-                    'anfitrion_id' => $anfitrion->id,
-                    'departamento' => $request->departamento,
-                    'clases_actividad' => $clases,
-                ]);
-            });
+        AnfitrionOperativo::create([
+            'anfitrion_id' => $anfitrion->id,
+            'departamento' => $request->departamento,
+            'clases_actividad' => $clases,
+        ]);
 
-            return redirect()->back()->with('mensaje_exito', 'Anfitrión creado correctamente.');
-        } catch (\Exception $e) {
-            Log::error("Error al crear anfitrión: " . $e->getMessage());
-            return redirect()->back()->withErrors(['error' => 'Ocurrió un error al guardar el anfitrión.'])->withInput();
-        }
-        // --- FIN DE CAMBIO ---
+        return redirect()->back()->with('mensaje_exito', 'Anfitrión creado correctamente.');
     }
 
     // Actualiza anfitrion con validación y actualización relacionada
@@ -247,17 +160,7 @@ class AnfitrionController extends Controller
             'nombre_usuario' => 'required|string|max:255',
             'password' => ['nullable', 'string', 'min:8', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/'],
             'rol' => 'required|string',
-            // --- INICIO DE CAMBIO ---
-            // Validación dinámica de departamentos
-            'departamento' => [
-                'required',
-                Rule::in(
-                    // Usamos el spa_id del anfitrión que se está editando
-                    Departamento::where('spa_id', $anfitrion->spa_id)->where('activo', true)->pluck('nombre')
-                )
-            ],
-            // --- FIN DE CAMBIO ---
-            'porcentaje_servicio' => 'nullable|numeric|min:0|max:100',
+            'departamento' => 'required|in:spa,gym,valet,salon de belleza',
             'accesos' => 'nullable|array',
             'accesos.*' => 'integer|exists:spas,id',
             'activo' => 'boolean',
@@ -282,7 +185,6 @@ class AnfitrionController extends Controller
                 'departamento' => $request->departamento,
                 'accesos' => $request->filled('accesos') ? array_values(array_map('intval', $request->accesos)) : [],
                 'activo' => $request->activo ?? true,
-                'porcentaje_servicio' => $request->porcentaje_servicio,
             ]);
 
             if ($request->filled('password')) {

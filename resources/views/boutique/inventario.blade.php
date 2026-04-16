@@ -12,7 +12,7 @@
         $spaCss = session('current_spa') ?? strtolower(optional(Auth::user()->spa)->nombre);
     @endphp
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
-        @vite('resources/css/menus/themes/' . $spaCss . '.css')
+        @vite('resources/css/menus/' . $spaCss . '/menu_styles.css')
         @vite('resources/css/general_styles.css')
         @vite('resources/css/boutique/boutique_inventario_styles.css')
         @vite('resources/css/componentes/autoComplete.css')
@@ -90,7 +90,7 @@
                 <div class="new-articulo-container" id="orden_compra_container">
                     <label class="label-new-articulo" for="new_folio_orden">Folio Orden de Compra *</label>
                     <input type="text" class="input-new-articulo" id="new_folio_orden"
-                        value="com2500001" readonly autocomplete="off">
+                        placeholder="Ingrese número de orden de compra" autocomplete="off">
                 </div>
                 <div class="new-articulo-container">
                     <label class="label-new-articulo" for="new_folio_factura">Folio de Factura *</label>
@@ -250,11 +250,6 @@
                     <p style="padding: 0; margin: 0; width: 120px; color: white;">Nuevo Artículo</p>
                 </button>
             </div>
-            <div style="display: flex; flex-direction: row;">
-                <a href="{{ route('boutique.inventario.excel') }}" class="btn" style="display: flex; align-items: center; text-decoration: none;">
-                    <i class="fas fa-download"></i>
-                </a>
-            </div>
         </form>
 
         <div class="tables-container"
@@ -266,6 +261,7 @@
                     <table class="table" id="tabla-compras">
                         <thead>
                             <tr>
+                                <th>Id</th>
                                 <th>No. Auxiliar</th>
                                 <th>Nombre</th>
                                 <th>Cantidad</th>
@@ -276,6 +272,7 @@
                         <tbody>
                             @foreach ($compras as $compra)
                                 <tr class="fila-articulo">
+                                    <td>{{ $compra->compra_id }}</td>
                                     <td>{{ str_pad($compra->numero_auxiliar, 10, '0', STR_PAD_LEFT) }}</td>
                                     <td>{{ $compra->nombre_articulo }}</td>
                                     <td>{{ $compra->cantidad_actual }}</td>
@@ -430,14 +427,6 @@
         // Contador para IDs únicos
         let contadorFilas = 1;
 
-        function getFechaActual() {
-            const hoy = new Date();
-            const anio = hoy.getFullYear();
-            const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-            const dia = String(hoy.getDate()).padStart(2, '0');
-            return `${anio}-${mes}-${dia}`;
-        }
-
         // Función para agregar una nueva fila de fecha de caducidad
         function agregarFilaFecha() {
             contadorFilas++;
@@ -445,7 +434,6 @@
             const primeraFila = document.querySelector('.fechas-caducidad-container');
 
             // Crear nueva fila
-            const fechaActual = getFechaActual();
             const nuevaFila = document.createElement('div');
             nuevaFila.className = 'fechas-caducidad-container';
             nuevaFila.id = `fecha-row-${contadorFilas}`;
@@ -460,7 +448,7 @@
                 <div class="new-articulo-container" style="padding: 0;">
                     <label class="label-new-articulo" for="new_fecha_${contadorFilas}">Fecha de Caducidad</label>
                     <input type="date" class="input-new-articulo fecha-caducidad" id="new_fecha_${contadorFilas}" 
-                        placeholder="Fecha de Caducidad" value="${fechaActual}" min="${fechaActual}">
+                        placeholder="Fecha de Caducidad">
                 </div>
                 <div style="display: flex; align-items: center; padding-top: 22px; width: 50px;">
                     <button type="button" class="fas fa-delete-left fa-lg eliminar-fila" 
@@ -481,20 +469,7 @@
 
         function nuevaCompra() {
             MundoImperial.modalSlotMostrar("modal-compra", "Agregar Nueva Compra");
-            
-            // Limpiar campos del formulario para evitar datos residuales
-            document.getElementById("new_folio_factura").value = "";
-            document.getElementById("autocomplete_articulo").value = "";
-            document.getElementById("autocomplete_articulo").dataset.key = "";
-            document.getElementById("new_precio_proveedor").value = "";
-            document.getElementById("new_cantidad").value = "";
-
             document.getElementById("autocomplete_articulo").focus();
-
-            const fechaInput = document.getElementById("new_fecha");
-            const fechaActual = getFechaActual();
-            fechaInput.value = fechaActual;
-            fechaInput.min = fechaActual;
         }
 
         async function confirmarNuevaCompra() {
@@ -757,10 +732,10 @@
 
             compraSeleccionada = {
                 id: compraId,
-                numero_auxiliar: celdas[0].textContent,
-                nombre_articulo: celdas[1].textContent,
-                cantidad_actual: celdas[2].textContent,
-                fecha_caducidad: celdas[3].textContent !== '-' ? celdas[3].textContent : ''
+                numero_auxiliar: celdas[1].textContent,
+                nombre_articulo: celdas[2].textContent,
+                cantidad_actual: celdas[3].textContent,
+                fecha_caducidad: celdas[4].textContent !== '-' ? celdas[4].textContent : ''
             };
 
             // Llenar el modal con los datos actuales

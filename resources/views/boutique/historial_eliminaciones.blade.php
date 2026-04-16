@@ -12,7 +12,7 @@
         $spaCss = session('current_spa') ?? strtolower(optional(Auth::user()->spa)->nombre);
     @endphp
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
-        @vite('resources/css/menus/themes/' . $spaCss . '.css')
+        @vite('resources/css/menus/' . $spaCss . '/menu_styles.css')
         @vite('resources/css/general_styles.css')
         @vite('resources/css/boutique/boutique_historial_styles.css')
         @vite('resources/css/componentes/autoComplete.css')
@@ -52,11 +52,6 @@
             <div class="filter" style="justify-content: flex-end;">
                 <button type="submit" class="btn" style="align-self: flex-start; margin: 0.25rem 0;">Filtrar</button>
             </div>
-            <div class="filter" style="justify-content: flex-end;">
-                <a href="{{ route('boutique.inventario.eliminaciones.excel', request()->query()) }}" class="btn" style="display: flex; align-items: center; text-decoration: none; align-self: flex-start; margin: 0.25rem 0;">
-                    <i class="fa-solid fa-download"></i>
-                </a>
-            </div>
             <div class="search-filter">
                 <input type="text" id="filtro-articulo" class="search-filter"
                     placeholder="Buscar por folio, número auxiliar, nombre, motivo...">
@@ -68,6 +63,8 @@
             <table class="table" id="tabla-eliminaciones">
                 <thead>
                     <tr>
+                        <th>Id</th>
+                        <th>Usuario</th>
                         <th>Tipo</th>
                         <th>Folio Orden</th>
                         <th>Folio Factura</th>
@@ -97,6 +94,8 @@
 
                         @foreach ($eliminacionesDelFolio as $eliminacion)
                             <tr class="fila-articulo {{ $claseColor }}">
+                                <td>{{ $eliminacion->id }}</td>
+                                <td>{{ $eliminacion->usuario_elimino ?? '-' }}</td>
                                 <td>{{ ucfirst($eliminacion->tipo_compra) }}</td>
                                 <td>{{ $eliminacion->folio_orden_compra ?? '-' }}</td>
                                 <td>{{ $eliminacion->folio_factura }}</td>
@@ -124,7 +123,7 @@
                         @endforeach
                     @empty
                         <tr class="fila-articulo">
-                            <td colspan="13" style="text-align: center">Sin compras eliminadas registradas</td>
+                            <td colspan="15" style="text-align: center">Sin compras eliminadas registradas</td>
                         </tr>
                     @endforelse
                 </tbody>

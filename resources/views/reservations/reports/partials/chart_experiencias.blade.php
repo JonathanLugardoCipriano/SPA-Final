@@ -1,16 +1,10 @@
 <div class="grafica">
     <div class="grafica-header">
     <div class="grafica-titulo">Experiencias más reservadas</div>
-    <a href="{{ route('reports.export.tipo', [
-        'tipo' => 'experiencias', 
-        'desde' => request('desde', $fechaInicio), 
-        'hasta' => request('hasta', $fechaFin), 
-        'servicio' => request('servicio')
-    ]) }}"
-       class="btn btn-sm btn-outline-success tiny-download"
-       data-export-type="experiencias"
+    <a href="{{ route('reports.export.tipo', ['tipo' => 'experiencias', 'desde' => request('desde'), 'hasta' => request('hasta')]) }}"
+       class="btn btn-sm btn-outline-success"
        title="Descargar en Excel">
-        <i class="fas fa-download"></i>
+        <i class="fas fa-file-excel"></i>
     </a>
 </div>
 
